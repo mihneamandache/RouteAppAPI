@@ -9,6 +9,15 @@ class RoutesController < ApplicationController
     end
   end
 
+  def configure
+    @route = Route.find(params.require(:id))
+    if @route.nil?
+      render json: "Error, route not found"
+    else
+      render xml: @route.make_api_call
+    end
+  end
+
   def route_params
     params.require(:route).permit(
       locations_attributes: [
