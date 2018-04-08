@@ -31,8 +31,9 @@ class Graph
       false
     else
       @vertex_references.push(v_reference)
-      @vertices.push(Vertex.new(v_id, v_reference))
-      true
+      new_vertex = Vertex.new(v_id, v_reference)
+      @vertices.push(new_vertex)
+      new_vertex
     end
   end
 
@@ -71,6 +72,14 @@ class Graph
     nil
   end
 
+  def find_vertex(reference)
+    @vertices.each do |vertex|
+      if vertex.reference == reference
+        vertex
+      end
+    end
+  end
+
   def dijkstra(src, dst = nil)
     distances = {}
     previouses = {}
@@ -92,7 +101,7 @@ class Graph
         return distances[dst]
       end
       neighbors = neighbors(nearest_vertex)
-      p neighbors
+
       neighbors.each do |vertex|
         alt = distances[nearest_vertex] + length_between(nearest_vertex, vertex)
         if distances[vertex].nil? or alt < distances[vertex]

@@ -63,7 +63,7 @@ class Route < ApplicationRecord
       add_nodes_to_graph(graph, current_nodes)
     end
     puts 'LALALA'
-    puts graph.dijkstra(ways.to_a.first, ways.to_a.last)[ways.to_a.last]
+    puts graph.dijkstra(graph.vertices.first, graph.vertices.last)
     'graph'
   end
 
@@ -71,13 +71,16 @@ class Route < ApplicationRecord
     current_node = nil
     id_counter = 1
     nodes.to_a.each do |node|
-      if graph.addVertex(id_counter, node.attribute("ref"))
+      vertex_address = graph.addVertex(id_counter, node.attribute("ref"))
+      if vertex_address != false
         id_counter += 1
+      else
+        vertex_address = graph.find_vertex(node.attribute("ref"))
       end
       if !current_node.nil?
-        graph.connect_mutually(current_node, node, 1)
-        current_node = node
+        graph.connect_mutually(current_node, vertex_address, 1)
       end
+      current_node = vertex_address
     end
   end
 
@@ -88,6 +91,34 @@ class Route < ApplicationRecord
       false
     end
   end
+
+  def get_distance(reference_x, reference_y)
+    api_url = "https://api.openstreetmap.org/api/0.6/node/"
+    node_x = Nokogiri::XML(RestClient.get(api_url + reference_x.to_s)).xpath("//osm").child
+    node_y = Nokogiri::XML(RestClient.get(api_url + reference_x.to_s)).xpath("//osm").child
+
+    node_x_lat = node_x.attribute("lat")
+    node_x_lon = node_x.attribute("lon")
+    node_y_lat = node_y.attribute("lat")
+    node_y_lon = node_y.attribute("lon")
+
+    distance_formulae(node_x_lat, node_x_lon, node_y_lat, node_y_lon)
+  end
+
+  def distance_formulae(lat1, lon1, lat2, lon2)
+    r = 6371e3
+    x1 = lat1 * Math::PI / 180
+    x2 = lat2 * Math::PI / 180
+    y = (lat2 - lat1) * Math::PI / 180
+    z = (lon2 - lon1) * Math::PI / 180
+
+    a = Math.sin(y/2) * Math.sin(y/2) +
+        Math.cos(x1) * Math.cos(x2) * Math.sin(z/2) * Math.sin(z/2)
+    c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+    return r * c
+  end
+
   def highway_tags
     [
       "<tag k=\"highway\" v=\"motorway\"/>",
