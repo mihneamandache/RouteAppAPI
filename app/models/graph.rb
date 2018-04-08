@@ -75,7 +75,7 @@ class Graph
   def find_vertex(reference)
     @vertices.each do |vertex|
       if vertex.reference == reference
-        vertex
+        return vertex
       end
     end
   end

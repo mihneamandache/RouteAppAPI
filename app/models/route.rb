@@ -26,11 +26,10 @@ class Route < ApplicationRecord
     end
 
     api_url += minx.to_s + ',' +  miny.to_s + ',' + maxx.to_s + ',' + maxy.to_s
-
+    p api_url
     #puts api_url
     xml_response = Nokogiri::XML(RestClient.get(api_url))
     ways = xml_response.xpath("//way")
-
     get_ways(ways, "highway")
   end
 
@@ -62,23 +61,24 @@ class Route < ApplicationRecord
       end
       add_nodes_to_graph(graph, current_nodes)
     end
-    puts 'LALALA'
-    puts graph.dijkstra(graph.vertices.first, graph.vertices.last)
+    #puts 'LALALA'
+    puts graph.dijkstra(graph.vertices.first, graph.vertices[2])
     'graph'
   end
 
   def add_nodes_to_graph(graph, nodes)
+    p 'SLoboz'
     current_node = nil
     id_counter = 1
     nodes.to_a.each do |node|
-      vertex_address = graph.addVertex(id_counter, node.attribute("ref"))
+      vertex_address = graph.addVertex(id_counter, node.attribute("ref").value)
       if vertex_address != false
         id_counter += 1
       else
-        vertex_address = graph.find_vertex(node.attribute("ref"))
+        vertex_address = graph.find_vertex(node.attribute("ref").value)
       end
       if !current_node.nil?
-        graph.connect_mutually(current_node, vertex_address, 1)
+        graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference))
       end
       current_node = vertex_address
     end
@@ -94,14 +94,13 @@ class Route < ApplicationRecord
 
   def get_distance(reference_x, reference_y)
     api_url = "https://api.openstreetmap.org/api/0.6/node/"
-    node_x = Nokogiri::XML(RestClient.get(api_url + reference_x.to_s)).xpath("//osm").child
-    node_y = Nokogiri::XML(RestClient.get(api_url + reference_x.to_s)).xpath("//osm").child
+    node_x = Nokogiri::XML(RestClient.get(api_url + reference_x)).xpath("//osm//node")
+    node_y = Nokogiri::XML(RestClient.get(api_url + reference_y)).xpath("//osm//node")
 
-    node_x_lat = node_x.attribute("lat")
-    node_x_lon = node_x.attribute("lon")
-    node_y_lat = node_y.attribute("lat")
-    node_y_lon = node_y.attribute("lon")
-
+    node_x_lat = node_x.attribute("lat").value.to_f
+    node_x_lon = node_x.attribute("lon").value.to_f
+    node_y_lat = node_y.attribute("lat").value.to_f
+    node_y_lon = node_y.attribute("lon").value.to_f
     distance_formulae(node_x_lat, node_x_lon, node_y_lat, node_y_lon)
   end
 
@@ -116,7 +115,7 @@ class Route < ApplicationRecord
         Math.cos(x1) * Math.cos(x2) * Math.sin(z/2) * Math.sin(z/2)
     c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 
-    return r * c
+    return r * c / 1000
   end
 
   def highway_tags
