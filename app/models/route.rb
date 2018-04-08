@@ -77,7 +77,8 @@ class Route < ApplicationRecord
         vertex_address = graph.find_vertex(node.attribute("ref").value)
       end
       if !current_node.nil?
-        graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference))
+        graph.connect_mutually(current_node, vertex_address, 1)
+        #graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference))
       end
       current_node = vertex_address
     end
