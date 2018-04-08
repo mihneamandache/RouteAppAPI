@@ -66,6 +66,7 @@ class Route < ApplicationRecord
   end
 
   def add_nodes_to_graph(graph, nodes)
+    p "sloboz"
     current_node = nil
     id_counter = 1
     nodes.to_a.each do |node|
