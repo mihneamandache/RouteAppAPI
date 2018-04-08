@@ -62,6 +62,8 @@ class Route < ApplicationRecord
       end
       add_nodes_to_graph(graph, current_nodes)
     end
+    puts 'LALALA'
+    puts graph.dijkstra(ways.to_a.first, ways.to_a.last)[ways.to_a.last]
     'graph'
   end
 
@@ -77,7 +79,6 @@ class Route < ApplicationRecord
         current_node = node
       end
     end
-    puts graph.vertex_references
   end
 
   def is_node(current_item)

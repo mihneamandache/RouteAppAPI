@@ -37,9 +37,9 @@ class Graph
   end
 
   def connect(from, to, distance)
-    if !@vertex_references.include?(from)
+    if !@vertices.include?(from)
       false
-    elsif !@vertex_references.include?(to)
+    elsif !@vertices.include?(to)
       false
     else
       @edges.push(Edge.new(from, to, distance))
@@ -69,6 +69,45 @@ class Graph
       end
     end
     nil
+  end
+
+  def dijkstra(src, dst = nil)
+    distances = {}
+    previouses = {}
+    @vertices.each do |vertex|
+      distances[vertex] = nil # Infinity
+      previouses[vertex] = nil
+    end
+    distances[src] = 0
+    vertices_copy = @vertices
+    until vertices_copy.empty?
+      nearest_vertex = vertices_copy.inject do |a, b|
+        next b unless distances[a]
+        next a unless distances[b]
+        next a if distances[a] < distances[b]
+        b
+      end
+      break unless distances[nearest_vertex] # Infinity
+      if dst and nearest_vertex == dst
+        return distances[dst]
+      end
+      neighbors = neighbors(nearest_vertex)
+      p neighbors
+      neighbors.each do |vertex|
+        alt = distances[nearest_vertex] + length_between(nearest_vertex, vertex)
+        if distances[vertex].nil? or alt < distances[vertex]
+          distances[vertex] = alt
+          previouses[vertices] = nearest_vertex
+          # decrease-key v in Q # ???
+        end
+      end
+    vertices_copy.delete nearest_vertex
+    end
+    if dst
+      return nil
+    else
+      return distances
+    end
   end
 
   #inspired from https://gist.github.com/yaraki/1730288
