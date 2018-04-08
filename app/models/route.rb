@@ -62,12 +62,10 @@ class Route < ApplicationRecord
       add_nodes_to_graph(graph, current_nodes)
     end
     #puts 'LALALA'
-    puts graph.dijkstra(graph.vertices.first, graph.vertices[2])
-    'graph'
+    graph.dijkstra(graph.vertices.first, graph.vertices[2])
   end
 
   def add_nodes_to_graph(graph, nodes)
-    p 'SLoboz'
     current_node = nil
     id_counter = 1
     nodes.to_a.each do |node|
@@ -78,7 +76,7 @@ class Route < ApplicationRecord
         vertex_address = graph.find_vertex(node.attribute("ref").value)
       end
       if !current_node.nil?
-        graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference))
+        graph.connect_mutually(current_node, vertex_address, 1)
       end
       current_node = vertex_address
     end
