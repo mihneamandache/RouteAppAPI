@@ -15,7 +15,7 @@ class RoutesController < ApplicationController
       render json: "Error, route not found"
     else
       to_render = @route.make_api_call
-      render json: to_render
+      render xml: to_render
     end
   end
 
