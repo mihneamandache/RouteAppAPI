@@ -33,7 +33,7 @@ class Route < ApplicationRecord
 
     node_location = create_node_location_hash(node_information)
 
-    ways = get_ways(xml_response.xpath("//way"), cycle_tags)
+    ways = get_ways(xml_response.xpath("//way"), foot_tags)
     graph = create_graph(ways, node_location)
     p 'graph ready'
 
@@ -198,26 +198,42 @@ class Route < ApplicationRecord
     node_location
   end
 
-  def highway_tags
+  def motor_tags
     [
       "<tag k=\"highway\" v=\"motorway\"/>",
+      "<tag k=\"highway\" v=\"motorway_link\"/>",
       "<tag k=\"highway\" v=\"trunk\"/>",
+      "<tag k=\"highway\" v=\"trunk_link\"/>",
       "<tag k=\"highway\" v=\"primary\"/>",
+      "<tag k=\"highway\" v=\"primary_link\"/>",
       "<tag k=\"highway\" v=\"secondary\"/>",
+      "<tag k=\"highway\" v=\"secondary_link\"/>",
       "<tag k=\"highway\" v=\"tertiary\"/>",
+      "<tag k=\"highway\" v=\"tertiary_link\"/>",
       "<tag k=\"highway\" v=\"unclassified\"/>",
       "<tag k=\"highway\" v=\"residential\"/>",
-      "<tag k=\"highway\" v=\"service\"/>",
       "<tag k=\"highway\" v=\"living_street\"/>",
-      "<tag k=\"highway\" v=\"track\"/>",
-      "<tag k=\"highway\" v=\"path\"/>",
       "<tag k=\"highway\" v=\"road\"/>"
     ]
   end
 
-  def footway_tags
+  def foot_tags
     [
+      "<tag k=\"highway\" v=\"trunk\"/>",
+      "<tag k=\"highway\" v=\"trunk_link\"/>",
+      "<tag k=\"highway\" v=\"primary\"/>",
+      "<tag k=\"highway\" v=\"primary_link\"/>",
+      "<tag k=\"highway\" v=\"secondary\"/>",
+      "<tag k=\"highway\" v=\"secondary_link\"/>",
+      "<tag k=\"highway\" v=\"tertiary\"/>",
+      "<tag k=\"highway\" v=\"tertiary_link\"/>",
+      "<tag k=\"highway\" v=\"unclassified\"/>",
+      "<tag k=\"highway\" v=\"residential\"/>",
+      "<tag k=\"highway\" v=\"living_street\"/>",
+      "<tag k=\"highway\" v=\"road\"/>",
       "<tag k=\"highway\" v=\"footway\"/>",
+      "<tag k=\"highway\" v=\"pedestrian\"/>",
+      "<tag k=\"highway\" v=\"path\"/>",
       "<tag k=\"foot\" v=\"yes\"/>",
       "<tag k=\"sidewalk\" v=\"both\"/>",
       "<tag k=\"foot\" v=\"designated\"/>",
@@ -227,19 +243,20 @@ class Route < ApplicationRecord
 
   def cycle_tags
     [
-      "<tag k=\"highway\" v=\"motorway\"/>",
       "<tag k=\"highway\" v=\"trunk\"/>",
+      "<tag k=\"highway\" v=\"trunk_link\"/>",
       "<tag k=\"highway\" v=\"primary\"/>",
+      "<tag k=\"highway\" v=\"primary_link\"/>",
       "<tag k=\"highway\" v=\"secondary\"/>",
+      "<tag k=\"highway\" v=\"secondary_link\"/>",
       "<tag k=\"highway\" v=\"tertiary\"/>",
+      "<tag k=\"highway\" v=\"tertiary_link\"/>",
       "<tag k=\"highway\" v=\"unclassified\"/>",
       "<tag k=\"highway\" v=\"residential\"/>",
-      "<tag k=\"highway\" v=\"service\"/>",
       "<tag k=\"highway\" v=\"living_street\"/>",
-      "<tag k=\"highway\" v=\"track\"/>",
-      "<tag k=\"highway\" v=\"path\"/>",
       "<tag k=\"highway\" v=\"road\"/>",
       "<tag k=\"highway\" v=\"cycleway\"/>",
+      "<tag k=\"highway\" v=\"path\"/>",
       "<tag k=\"cycleway:right\" v=\"opposite_lane\"/>",
       "<tag k=\"cycleway:right\" v=\"lane\"/>",
       "<tag k=\"cycleway:right\" v=\"track\"/>",
