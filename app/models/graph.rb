@@ -81,7 +81,7 @@ class Graph
     nil
   end
 
-  def dijkstra(src, dst = nil)
+  def dijkstra(src, dst)
     distances = {}
     previouses = {}
     @vertices.each do |vertex|
@@ -89,9 +89,9 @@ class Graph
       previouses[vertex] = nil
     end
     distances[src] = 0
-    vertices_copy = @vertices
-    until vertices_copy.empty?
-      nearest_vertex = vertices_copy.inject do |a, b|
+    vertices_copy = self.clone
+    until vertices_copy.vertices.empty?
+      nearest_vertex = vertices_copy.vertices.inject do |a, b|
         next b unless distances[a]
         next a unless distances[b]
         next a if distances[a] < distances[b]
@@ -99,25 +99,44 @@ class Graph
       end
       break unless distances[nearest_vertex] # Infinity
       if dst and nearest_vertex == dst
-        return distances[dst]
+        path = get_path(previouses, src, dst)
+        return { path: path, distance: distances[dst] }
       end
-      neighbors = neighbors(nearest_vertex)
+      neighbors = vertices_copy.neighbors(nearest_vertex)
 
       neighbors.each do |vertex|
-        alt = distances[nearest_vertex] + length_between(nearest_vertex, vertex)
+        alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
         if distances[vertex].nil? or alt < distances[vertex]
           distances[vertex] = alt
-          previouses[vertices] = nearest_vertex
+          previouses[vertex] = nearest_vertex
           # decrease-key v in Q # ???
         end
       end
-    vertices_copy.delete nearest_vertex
+    vertices_copy.vertices.delete nearest_vertex
     end
     if dst
       return nil
     else
-      return distances
+      paths = {}
+      distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
+      return { paths: paths, distances: distances }
     end
+  end
+
+  private
+  def get_path(previouses, src, dest)
+    puts previouses[dest]
+    path = get_path_recursively(previouses, src, dest)
+    path.is_a?(Array) ? path.reverse : path
+  end
+
+  # Unroll through previouses array until we get to source
+  def get_path_recursively(previouses, src, dest)
+    return src if src == dest
+    if previouses[dest].nil?
+      return false
+    end
+    [dest, get_path_recursively(previouses, src, previouses[dest])].flatten
   end
 
   #inspired from https://gist.github.com/yaraki/1730288
