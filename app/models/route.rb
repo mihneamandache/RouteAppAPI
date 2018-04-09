@@ -33,11 +33,14 @@ class Route < ApplicationRecord
 
     node_location = create_node_location_hash(node_information)
 
-    ways = get_ways(xml_response.xpath("//way"), "")
+    ways = get_ways(xml_response.xpath("//way"), cycle_tags)
     graph = create_graph(ways, node_location)
+    p 'graph ready'
+
     start_location = get_start_location_id(graph)
+    p start_location
     goal_location = get_goal_location_id(graph)
-    p start_location, goal_location
+    p goal_location
     graph.dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location)).to_s
   end
 
@@ -49,21 +52,24 @@ class Route < ApplicationRecord
     start_lon = locations[0].longitude
     start = "," + start_lat.to_s + "," + start_lon.to_s + ");out;"
 
-    radius = 0
+    radius = 10
     found = false
     while found == false do
+      p "not found"
       nodes = Nokogiri::XML(RestClient.get(api_url + radius.to_s + start)).xpath("//node")
+      p api_url + radius.to_s + start
       if nodes.empty?
-        radius += 1
+        radius += 10
       else
         nodes.each do |node|
-          if !graph.find_vertex(node.attribute("id").value).nil?
+          p graph.find_vertex(node.attribute("id").value)
+          if (!graph.find_vertex(node.attribute("id").value).nil? and found == false)
             found = true
             start_location_id = node.attribute("id").value
           end
         end
         if found == false
-          radius += 1
+          radius += 10
         end
       end
     end
@@ -79,33 +85,36 @@ class Route < ApplicationRecord
     goal_lon = locations[1].longitude
     goal = "," + goal_lat.to_s + "," + goal_lon.to_s + ");out;"
 
-    radius = 0
+    radius = 10
     found = false
     while found == false do
+      p "not found"
       nodes = Nokogiri::XML(RestClient.get(api_url + radius.to_s + goal)).xpath("//node")
+      p api_url + radius.to_s + goal
       if nodes.empty?
-        radius += 1
+        radius += 10
       else
         nodes.each do |node|
-          if !graph.find_vertex(node.attribute("id").value).nil?
+          p graph.find_vertex(node.attribute("id").value)
+          if (!graph.find_vertex(node.attribute("id").value).nil? and found == false)
             found = true
             goal_location_id = node.attribute("id").value
           end
         end
         if found == false
-          radius += 1
+          radius += 10
         end
       end
     end
     goal_location_id
   end
 
-  def get_ways(ways, tag)
+  def get_ways(ways, tags)
     tagged_ways = []
     ways.to_a.each do |way|
       contains = false
       way.children.each do |child|
-        if highway_tags.include?(child.to_s)
+        if tags.include?(child.to_s)
           contains = true
         end
       end
@@ -202,8 +211,44 @@ class Route < ApplicationRecord
       "<tag k=\"highway\" v=\"living_street\"/>",
       "<tag k=\"highway\" v=\"track\"/>",
       "<tag k=\"highway\" v=\"path\"/>",
-      "<tag k=\"highway\" v=\"road\"/>",
+      "<tag k=\"highway\" v=\"road\"/>"
     ]
   end
 
+  def footway_tags
+    [
+      "<tag k=\"highway\" v=\"footway\"/>",
+      "<tag k=\"foot\" v=\"yes\"/>",
+      "<tag k=\"sidewalk\" v=\"both\"/>",
+      "<tag k=\"foot\" v=\"designated\"/>",
+      "<tag k=\"foot\" v=\"permissive\"/>"
+    ]
+  end
+
+  def cycle_tags
+    [
+      "<tag k=\"highway\" v=\"motorway\"/>",
+      "<tag k=\"highway\" v=\"trunk\"/>",
+      "<tag k=\"highway\" v=\"primary\"/>",
+      "<tag k=\"highway\" v=\"secondary\"/>",
+      "<tag k=\"highway\" v=\"tertiary\"/>",
+      "<tag k=\"highway\" v=\"unclassified\"/>",
+      "<tag k=\"highway\" v=\"residential\"/>",
+      "<tag k=\"highway\" v=\"service\"/>",
+      "<tag k=\"highway\" v=\"living_street\"/>",
+      "<tag k=\"highway\" v=\"track\"/>",
+      "<tag k=\"highway\" v=\"path\"/>",
+      "<tag k=\"highway\" v=\"road\"/>",
+      "<tag k=\"highway\" v=\"cycleway\"/>",
+      "<tag k=\"cycleway:right\" v=\"opposite_lane\"/>",
+      "<tag k=\"cycleway:right\" v=\"lane\"/>",
+      "<tag k=\"cycleway:right\" v=\"track\"/>",
+      "<tag k=\"cycleway:left\" v=\"lane\"/>",
+      "<tag k=\"cycleway:both\" v=\"lane\"/>",
+      "<tag k=\"cycleway\" v=\"lane\"/>",
+      "<tag k=\"bicycle\" v=\"use_sidepath\"/>",
+      "<tag k=\"cycleway\" v=\"track\"/>",
+      "<tag k=\"cycleway\" v=\"opposite\"/>"
+    ]
+  end
 end
