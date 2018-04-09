@@ -33,7 +33,7 @@ class Route < ApplicationRecord
 
     node_location = create_node_location_hash(node_information)
 
-    ways = get_ways(xml_response.xpath("//way"), foot_tags)
+    ways = get_ways(xml_response.xpath("//way"), motor_tags)
     graph = create_graph(ways, node_location)
     p 'graph ready'
 
