@@ -78,6 +78,7 @@ class Graph
         return vertex
       end
     end
+    nil
   end
 
   def dijkstra(src, dst = nil)
