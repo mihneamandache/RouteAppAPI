@@ -24,24 +24,26 @@ class Route < ApplicationRecord
         maxy = location.latitude
       end
     end
-
-    api_url += minx.to_s + ',' +  miny.to_s + ',' + maxx.to_s + ',' + maxy.to_s
-    p api_url
-    #puts api_url
+    diff1 = 0.1 - (locations[0].latitude - locations[1].latitude).abs
+    diff2 = 0.1 - (locations[0].longitude - locations[1].longitude).abs
+    diff1 = diff2 = 0
+    api_url += (minx - diff2/2).to_s + ',' +  (miny - diff1/2).to_s + ',' + (maxx + diff2/2).to_s + ',' + (maxy + diff1/2).to_s
+    puts api_url
     xml_response = Nokogiri::XML(RestClient.get(api_url))
     node_information = xml_response.xpath("//node")
 
-    node_location = create_node_location_hash(node_information)
-
+    node_information = create_node_information_hash(node_information)
     ways = get_ways(xml_response.xpath("//way"), motor_tags)
-    graph = create_graph(ways, node_location)
+    graph = create_graph(ways, node_information)
     p 'graph ready'
-
     start_location = get_start_location_id(graph)
     p start_location
     goal_location = get_goal_location_id(graph)
     p goal_location
-    graph.dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location)).to_s
+    p 'going in'
+    p graph.neighbors(graph.find_vertex(goal_location))
+    graph.adapted_dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location)).to_s
+
   end
 
   def get_start_location_id(graph)
@@ -55,15 +57,15 @@ class Route < ApplicationRecord
     radius = 10
     found = false
     while found == false do
-      p "not found"
+      p 'still searching'
       nodes = Nokogiri::XML(RestClient.get(api_url + radius.to_s + start)).xpath("//node")
       p api_url + radius.to_s + start
       if nodes.empty?
         radius += 10
       else
         nodes.each do |node|
-          p graph.find_vertex(node.attribute("id").value)
-          if (!graph.find_vertex(node.attribute("id").value).nil? and found == false)
+          possible_start = graph.find_vertex(node.attribute("id").value)
+          if (!possible_start.nil? and found == false and !graph.neighbors(possible_start).empty?)
             found = true
             start_location_id = node.attribute("id").value
           end
@@ -88,14 +90,11 @@ class Route < ApplicationRecord
     radius = 10
     found = false
     while found == false do
-      p "not found"
       nodes = Nokogiri::XML(RestClient.get(api_url + radius.to_s + goal)).xpath("//node")
-      p api_url + radius.to_s + goal
       if nodes.empty?
         radius += 10
       else
         nodes.each do |node|
-          p graph.find_vertex(node.attribute("id").value)
           if (!graph.find_vertex(node.attribute("id").value).nil? and found == false)
             found = true
             goal_location_id = node.attribute("id").value
@@ -125,27 +124,31 @@ class Route < ApplicationRecord
     tagged_ways
   end
 
-  def create_graph(ways, node_location)
+  def create_graph(ways, node_information)
     graph = Graph.new
     current_nodes = []
+    id_counter = 1
     ways.to_a.each do |way|
       current_nodes = []
+      oneway = false
       way.children.each do |child|
         if is_node(child.to_s) == true
           current_nodes.push(child)
         end
+        if child.to_s == "<tag k=\"oneway\" v=\"yes\"/>"
+          oneway = true
+        end
       end
-      add_nodes_to_graph(graph, current_nodes, node_location)
+      id_counter = add_nodes_to_graph(graph, current_nodes, node_information, false, id_counter)
     end
     #puts 'LALALA'
     graph
   end
 
-  def add_nodes_to_graph(graph, nodes, node_location)
+  def add_nodes_to_graph(graph, nodes, node_information, oneway, id_counter)
     current_node = nil
-    id_counter = 1
     nodes.to_a.each do |node|
-      vertex_address = graph.addVertex(id_counter, node.attribute("ref").value)
+      vertex_address = graph.addVertex(id_counter, node.attribute("ref").value, node_information[node.attribute("ref").value][2])
       if vertex_address != false
         id_counter += 1
       else
@@ -153,10 +156,15 @@ class Route < ApplicationRecord
       end
       if !current_node.nil?
         #graph.connect_mutually(current_node, vertex_address, 1)
-        graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference, node_location))
+        if oneway
+          graph.connect(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference, node_information))
+        else
+          graph.connect_mutually(current_node, vertex_address, get_distance(current_node.reference, vertex_address.reference, node_information))
+        end
       end
       current_node = vertex_address
     end
+    id_counter
   end
 
   def is_node(current_item)
@@ -167,11 +175,11 @@ class Route < ApplicationRecord
     end
   end
 
-  def get_distance(reference_x, reference_y, node_location)
-    node_x_lat = node_location[reference_x][0].to_f
-    node_x_lon = node_location[reference_x][1].to_f
-    node_y_lat = node_location[reference_y][0].to_f
-    node_y_lon = node_location[reference_y][1].to_f
+  def get_distance(reference_x, reference_y, node_information)
+    node_x_lat = node_information[reference_x][0].to_f
+    node_x_lon = node_information[reference_x][1].to_f
+    node_y_lat = node_information[reference_y][0].to_f
+    node_y_lon = node_information[reference_y][1].to_f
 
     distance_formulae(node_x_lat, node_x_lon, node_y_lat, node_y_lon)
   end
@@ -189,13 +197,19 @@ class Route < ApplicationRecord
     return r * c / 1000
   end
 
-  def create_node_location_hash(nodes)
-    node_location = {}
+  def create_node_information_hash(nodes)
+    node_information = {}
     nodes.each do |node|
       node_ref = node.attribute("id").value
-      node_location[node_ref] = [node.attribute("lat").value, node.attribute("lon").value]
+      extras = [node.attribute("lat").value, node.attribute("lon").value]
+      extra_information = []
+      node.children.each do |child|
+        extra_information.push("traffic_light") if child.to_s == "<tag k=\"highway\" v=\"traffic_signals\"/>"
+      end
+      extras.push extra_information
+      node_information[node_ref] = extras
     end
-    node_location
+    node_information
   end
 
   def motor_tags

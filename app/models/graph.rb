@@ -9,11 +9,12 @@ class Edge
 end
 
 class Vertex
-  attr_accessor :id, :reference
+  attr_accessor :id, :reference, :extras
 
-  def initialize(id, reference)
+  def initialize(id, reference, extras)
     @id = id
     @reference = reference
+    @extras = extras
   end
 end
 
@@ -26,12 +27,12 @@ class Graph
     @vertex_references = []
   end
 
-  def addVertex(v_id, v_reference)
+  def addVertex(v_id, v_reference, v_extras)
     if @vertex_references.include?(v_reference)
       false
     else
       @vertex_references.push(v_reference)
-      new_vertex = Vertex.new(v_id, v_reference)
+      new_vertex = Vertex.new(v_id, v_reference, v_extras)
       @vertices.push(new_vertex)
       new_vertex
     end
@@ -114,8 +115,74 @@ class Graph
       end
     vertices_copy.vertices.delete nearest_vertex
     end
-    if dst
-      return nil
+    if vertices_copy.vertices.include?(dst)
+      nil
+    else
+      paths = {}
+      distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
+      return { paths: paths, distances: distances }
+    end
+  end
+
+  def adapted_dijkstra(src, dst)
+    distances = {}
+    previouses = {}
+    is_good = {}
+
+    @vertices.each do |vertex|
+      distances[vertex] = nil # Infinity
+      previouses[vertex] = nil
+      is_good[vertex] = true
+    end
+
+    distances[src] = 0
+    vertices_copy = self.clone
+    until vertices_copy.vertices.empty?
+      nearest_vertex = vertices_copy.vertices.inject do |a, b|
+        next b unless distances[a]
+        next a unless distances[b]
+        next a if distances[a] < distances[b]
+        b
+      end
+      break unless distances[nearest_vertex] # Infinity
+
+      neighbors = vertices_copy.neighbors(nearest_vertex)
+      p "nearest_vertex", nearest_vertex
+      neighbors.each do |vertex|
+        p vertex
+        alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
+        p alt == distances[nearest_vertex]
+        p 'before'
+        p distances[vertex]
+        p 'Vertex good ?'
+        p is_good[vertex]
+        if distances[vertex].nil?
+          p 'xxxxxxx'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+          is_good[vertex] = !vertex.extras.include?("traffic_light")
+          p is_good[vertex]
+
+        elsif (alt < distances[vertex] and is_good[vertex] == !nearest_vertex.extras.include?("traffic_light"))
+          p 'yyyyyyyyyy'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+
+        elsif (alt > distances[vertex] and is_good[vertex] == false and !nearest_vertex.extras.include?("traffic_light") and @vertices.include?(vertex))
+          p 'zzzzzzzzzzzzz'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+          is_good[vertex] = true
+
+        end
+        p 'after'
+        p distances[vertex]
+      end
+    vertices_copy.vertices.delete nearest_vertex
+    end
+    if !@vertices.include?(dst)
+      path = get_path(previouses, src, dst)
+      return { path: path, distance: distances[dst] }
     else
       paths = {}
       distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
@@ -125,7 +192,6 @@ class Graph
 
   private
   def get_path(previouses, src, dest)
-    puts previouses[dest]
     path = get_path_recursively(previouses, src, dest)
     path.is_a?(Array) ? path.reverse : path
   end
@@ -137,6 +203,21 @@ class Graph
       return false
     end
     [dest, get_path_recursively(previouses, src, previouses[dest])].flatten
+  end
+
+  def alg_try(src, dst)
+    distances = {}
+    previouses = {}
+    is_good = {}
+
+    @vertices.each do |vertex|
+      distances[vertex] = nil # Infinity
+      previouses[vertex] = nil
+      is_good[vertex] = true
+    end
+
+    distances[src] = 0
+    recursive(src, dest, distances)
   end
 
   #inspired from https://gist.github.com/yaraki/1730288
