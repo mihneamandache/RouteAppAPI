@@ -33,7 +33,7 @@ class Route < ApplicationRecord
     node_information = xml_response.xpath("//node")
 
     node_information = create_node_information_hash(node_information)
-    ways = get_ways(xml_response.xpath("//way"), motor_tags)
+    ways = get_ways(xml_response.xpath("//way"), foot_tags)
     graph = create_graph(ways, node_information)
     p 'graph ready'
     start_location = get_start_location_id(graph)
@@ -41,9 +41,16 @@ class Route < ApplicationRecord
     goal_location = get_goal_location_id(graph)
     p goal_location
     p 'going in'
-    p graph.neighbors(graph.find_vertex(goal_location))
-    graph.adapted_dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location)).to_s
-
+    c_route = graph.adapted_dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location))
+    coordinates = []
+    p c_route.keys
+    c_route.keys[0].each do |ref|
+      coordinates.push([node_information[ref][0], node_information[ref][1]])
+    end
+    coordinates.each do |c|
+      print c[0], ",", c[1]
+      print "\n"
+    end
   end
 
   def get_start_location_id(graph)
@@ -95,7 +102,10 @@ class Route < ApplicationRecord
         radius += 10
       else
         nodes.each do |node|
-          if (!graph.find_vertex(node.attribute("id").value).nil? and found == false)
+          possible_goal = graph.find_vertex(node.attribute("id").value)
+          p graph.can_be_reached(possible_goal)
+          if (!possible_goal.nil? and found == false and graph.can_be_reached(possible_goal))
+            p 'naaaaah'
             found = true
             goal_location_id = node.attribute("id").value
           end
@@ -139,7 +149,7 @@ class Route < ApplicationRecord
           oneway = true
         end
       end
-      id_counter = add_nodes_to_graph(graph, current_nodes, node_information, false, id_counter)
+      id_counter = add_nodes_to_graph(graph, current_nodes, node_information, oneway, id_counter)
     end
     #puts 'LALALA'
     graph
@@ -204,7 +214,7 @@ class Route < ApplicationRecord
       extras = [node.attribute("lat").value, node.attribute("lon").value]
       extra_information = []
       node.children.each do |child|
-        extra_information.push("traffic_light") if child.to_s == "<tag k=\"highway\" v=\"traffic_signals\"/>"
+        extra_information.push("traffic_light") if child.to_s == "<tag k=\"highway\" v=\"crossing\"/>"
       end
       extras.push extra_information
       node_information[node_ref] = extras
@@ -278,6 +288,7 @@ class Route < ApplicationRecord
       "<tag k=\"cycleway:both\" v=\"lane\"/>",
       "<tag k=\"cycleway\" v=\"lane\"/>",
       "<tag k=\"bicycle\" v=\"use_sidepath\"/>",
+      "<tag k=\"bicycle\" v=\"yes\"/>",
       "<tag k=\"cycleway\" v=\"track\"/>",
       "<tag k=\"cycleway\" v=\"opposite\"/>"
     ]

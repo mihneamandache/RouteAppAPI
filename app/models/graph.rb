@@ -64,6 +64,16 @@ class Graph
     return neighbours.uniq
   end
 
+  def can_be_reached(vertex)
+    previous_vertex = []
+    @edges.each do |edge|
+      if edge.to == vertex
+        previous_vertex.push(edge.to)
+      end
+    end
+    return !previous_vertex.empty?
+  end
+  
   def length_between(from, to)
     @edges.each do |edge|
       if edge.from == from and edge.to == to
@@ -101,7 +111,7 @@ class Graph
       break unless distances[nearest_vertex] # Infinity
       if dst and nearest_vertex == dst
         path = get_path(previouses, src, dst)
-        return { path: path, distance: distances[dst] }
+        return {path => distances[dst]}
       end
       neighbors = vertices_copy.neighbors(nearest_vertex)
 
@@ -127,15 +137,16 @@ class Graph
   def adapted_dijkstra(src, dst)
     distances = {}
     previouses = {}
-    is_good = {}
+    no_of_obstacles = {}
 
     @vertices.each do |vertex|
       distances[vertex] = nil # Infinity
       previouses[vertex] = nil
-      is_good[vertex] = true
+      no_of_obstacles[vertex] = nil
     end
 
     distances[src] = 0
+    no_of_obstacles[src] = 0
     vertices_copy = self.clone
     until vertices_copy.vertices.empty?
       nearest_vertex = vertices_copy.vertices.inject do |a, b|
@@ -147,42 +158,36 @@ class Graph
       break unless distances[nearest_vertex] # Infinity
 
       neighbors = vertices_copy.neighbors(nearest_vertex)
-      p "nearest_vertex", nearest_vertex
+      #p 'nearest_vertex', nearest_vertex
       neighbors.each do |vertex|
-        p vertex
-        alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
-        p alt == distances[nearest_vertex]
-        p 'before'
-        p distances[vertex]
-        p 'Vertex good ?'
-        p is_good[vertex]
-        if distances[vertex].nil?
-          p 'xxxxxxx'
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
-          is_good[vertex] = !vertex.extras.include?("traffic_light")
-          p is_good[vertex]
-
-        elsif (alt < distances[vertex] and is_good[vertex] == !nearest_vertex.extras.include?("traffic_light"))
-          p 'yyyyyyyyyy'
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
-
-        elsif (alt > distances[vertex] and is_good[vertex] == false and !nearest_vertex.extras.include?("traffic_light") and @vertices.include?(vertex))
-          p 'zzzzzzzzzzzzz'
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
-          is_good[vertex] = true
-
+        #p vertex
+        obstacle = 0
+        if vertex.extras.include?("traffic_light")
+          obstacle = 1
         end
-        p 'after'
-        p distances[vertex]
+        #p obstacle
+        alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
+        if distances[vertex].nil?
+          #p '1111111111'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+          no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
+        elsif no_of_obstacles[vertex] > no_of_obstacles[nearest_vertex] + obstacle
+          #p '222222'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+          no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
+        elsif (no_of_obstacles[vertex] == no_of_obstacles[nearest_vertex] + obstacle and alt < distances[vertex])
+          #p '333333'
+          distances[vertex] = alt
+          previouses[vertex] = nearest_vertex
+        end
       end
     vertices_copy.vertices.delete nearest_vertex
     end
     if !@vertices.include?(dst)
       path = get_path(previouses, src, dst)
-      return { path: path, distance: distances[dst] }
+      return {path => distances[dst]}
     else
       paths = {}
       distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
@@ -198,11 +203,11 @@ class Graph
 
   # Unroll through previouses array until we get to source
   def get_path_recursively(previouses, src, dest)
-    return src if src == dest
+    return src.reference if src == dest
     if previouses[dest].nil?
       return false
     end
-    [dest, get_path_recursively(previouses, src, previouses[dest])].flatten
+    [dest.reference, get_path_recursively(previouses, src, previouses[dest])].flatten
   end
 
   def alg_try(src, dst)
