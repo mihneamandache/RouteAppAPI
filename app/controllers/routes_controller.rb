@@ -14,8 +14,9 @@ class RoutesController < ApplicationController
     if @route.nil?
       render json: "Error, route not found"
     else
-      to_render = @route.make_api_call
-      render xml: to_render
+      to_render = @route.make_api_call(params[:travel_by], params[:adapt_to].to_i)
+      to_render = {:error => to_render} if !to_render.is_a?(Array)
+      render json: to_render
     end
   end
 

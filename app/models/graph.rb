@@ -73,7 +73,7 @@ class Graph
     end
     return !previous_vertex.empty?
   end
-  
+
   def length_between(from, to)
     @edges.each do |edge|
       if edge.from == from and edge.to == to
@@ -96,7 +96,7 @@ class Graph
     distances = {}
     previouses = {}
     @vertices.each do |vertex|
-      distances[vertex] = nil # Infinity
+      distances[vertex] = nil
       previouses[vertex] = nil
     end
     distances[src] = 0
@@ -108,7 +108,7 @@ class Graph
         next a if distances[a] < distances[b]
         b
       end
-      break unless distances[nearest_vertex] # Infinity
+      break unless distances[nearest_vertex]
       if dst and nearest_vertex == dst
         path = get_path(previouses, src, dst)
         return {path => distances[dst]}
@@ -120,18 +120,11 @@ class Graph
         if distances[vertex].nil? or alt < distances[vertex]
           distances[vertex] = alt
           previouses[vertex] = nearest_vertex
-          # decrease-key v in Q # ???
         end
       end
     vertices_copy.vertices.delete nearest_vertex
     end
-    if vertices_copy.vertices.include?(dst)
-      nil
-    else
-      paths = {}
-      distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
-      return { paths: paths, distances: distances }
-    end
+    nil
   end
 
   def adapted_dijkstra(src, dst)
@@ -140,7 +133,7 @@ class Graph
     no_of_obstacles = {}
 
     @vertices.each do |vertex|
-      distances[vertex] = nil # Infinity
+      distances[vertex] = nil
       previouses[vertex] = nil
       no_of_obstacles[vertex] = nil
     end
@@ -155,30 +148,24 @@ class Graph
         next a if distances[a] < distances[b]
         b
       end
-      break unless distances[nearest_vertex] # Infinity
+      break unless distances[nearest_vertex]
 
       neighbors = vertices_copy.neighbors(nearest_vertex)
-      #p 'nearest_vertex', nearest_vertex
       neighbors.each do |vertex|
-        #p vertex
         obstacle = 0
-        if vertex.extras.include?("traffic_light")
+        if vertex.extras.include?("marked")
           obstacle = 1
         end
-        #p obstacle
         alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
         if distances[vertex].nil?
-          #p '1111111111'
           distances[vertex] = alt
           previouses[vertex] = nearest_vertex
           no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
         elsif no_of_obstacles[vertex] > no_of_obstacles[nearest_vertex] + obstacle
-          #p '222222'
           distances[vertex] = alt
           previouses[vertex] = nearest_vertex
           no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
         elsif (no_of_obstacles[vertex] == no_of_obstacles[nearest_vertex] + obstacle and alt < distances[vertex])
-          #p '333333'
           distances[vertex] = alt
           previouses[vertex] = nearest_vertex
         end
@@ -189,9 +176,7 @@ class Graph
       path = get_path(previouses, src, dst)
       return {path => distances[dst]}
     else
-      paths = {}
-      distances.each { |k, v| paths[k] = get_path(previouses, src, k) }
-      return { paths: paths, distances: distances }
+      return nil
     end
   end
 

@@ -2,7 +2,7 @@ class Route < ApplicationRecord
   has_many :locations
   accepts_nested_attributes_for :locations
 
-  def make_api_call
+  def make_api_call(travel_by, adapt_to)
     api_url = "https://api.openstreetmap.org/api/0.6/map?bbox="
 
     minx = 181
@@ -24,33 +24,44 @@ class Route < ApplicationRecord
         maxy = location.latitude
       end
     end
-    diff1 = 0.1 - (locations[0].latitude - locations[1].latitude).abs
-    diff2 = 0.1 - (locations[0].longitude - locations[1].longitude).abs
-    diff1 = diff2 = 0
-    api_url += (minx - diff2/2).to_s + ',' +  (miny - diff1/2).to_s + ',' + (maxx + diff2/2).to_s + ',' + (maxy + diff1/2).to_s
-    puts api_url
-    xml_response = Nokogiri::XML(RestClient.get(api_url))
+    api_url += minx.to_s + ',' +  miny.to_s + ',' + maxx.to_s + ',' + maxy.to_s
+
+    begin
+      xml_response = Nokogiri::XML(RestClient.get(api_url))
+    rescue RestClient::ExceptionWithResponse => err
+      return err.response
+    end
     node_information = xml_response.xpath("//node")
 
-    node_information = create_node_information_hash(node_information)
-    ways = get_ways(xml_response.xpath("//way"), foot_tags)
+    ways = []
+    case travel_by
+    when "car"
+      node_information = create_node_information_hash(node_information, adapt_to, custom_motor)
+      ways = get_ways(xml_response.xpath("//way"), motor_tags)
+    when "foot"
+      node_information = create_node_information_hash(node_information, adapt_to, custom_foot)
+      ways = get_ways(xml_response.xpath("//way"), foot_tags)
+    when "bicycle"
+      node_information = create_node_information_hash(node_information, adapt_to, custom_cycle)
+      ways = get_ways(xml_response.xpath("//way"), cycle_tags)
+    end
+
     graph = create_graph(ways, node_information)
-    p 'graph ready'
     start_location = get_start_location_id(graph)
-    p start_location
     goal_location = get_goal_location_id(graph)
-    p goal_location
-    p 'going in'
-    c_route = graph.adapted_dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location))
+
+    case adapt_to
+    when 0
+      c_route = graph.dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location))
+    else
+      c_route = graph.adapted_dijkstra(graph.find_vertex(start_location), graph.find_vertex(goal_location))
+    end
+    return "No route found between the specified coordinates" if c_route.nil?
     coordinates = []
-    p c_route.keys
     c_route.keys[0].each do |ref|
       coordinates.push([node_information[ref][0], node_information[ref][1]])
     end
-    coordinates.each do |c|
-      print c[0], ",", c[1]
-      print "\n"
-    end
+    coordinates.push(c_route.values_at(c_route.keys[0]))
   end
 
   def get_start_location_id(graph)
@@ -64,9 +75,7 @@ class Route < ApplicationRecord
     radius = 10
     found = false
     while found == false do
-      p 'still searching'
       nodes = Nokogiri::XML(RestClient.get(api_url + radius.to_s + start)).xpath("//node")
-      p api_url + radius.to_s + start
       if nodes.empty?
         radius += 10
       else
@@ -103,9 +112,7 @@ class Route < ApplicationRecord
       else
         nodes.each do |node|
           possible_goal = graph.find_vertex(node.attribute("id").value)
-          p graph.can_be_reached(possible_goal)
           if (!possible_goal.nil? and found == false and graph.can_be_reached(possible_goal))
-            p 'naaaaah'
             found = true
             goal_location_id = node.attribute("id").value
           end
@@ -141,24 +148,31 @@ class Route < ApplicationRecord
     ways.to_a.each do |way|
       current_nodes = []
       oneway = false
+      should_mark = false
       way.children.each do |child|
         if is_node(child.to_s) == true
           current_nodes.push(child)
+          if !node_information[child.attribute("ref").value][2].empty?
+            should_mark = true
+          end
         end
         if child.to_s == "<tag k=\"oneway\" v=\"yes\"/>"
           oneway = true
         end
       end
-      id_counter = add_nodes_to_graph(graph, current_nodes, node_information, oneway, id_counter)
+      id_counter = add_nodes_to_graph(graph, current_nodes, node_information, oneway, id_counter, should_mark)
     end
-    #puts 'LALALA'
     graph
   end
 
-  def add_nodes_to_graph(graph, nodes, node_information, oneway, id_counter)
+  def add_nodes_to_graph(graph, nodes, node_information, oneway, id_counter, should_mark)
     current_node = nil
     nodes.to_a.each do |node|
-      vertex_address = graph.addVertex(id_counter, node.attribute("ref").value, node_information[node.attribute("ref").value][2])
+      if should_mark
+        vertex_address = graph.addVertex(id_counter, node.attribute("ref").value, "marked")
+      else
+        vertex_address = graph.addVertex(id_counter, node.attribute("ref").value, [])
+      end
       if vertex_address != false
         id_counter += 1
       else
@@ -207,16 +221,21 @@ class Route < ApplicationRecord
     return r * c / 1000
   end
 
-  def create_node_information_hash(nodes)
+  def create_node_information_hash(nodes, adapt_to, custom_tags)
     node_information = {}
     nodes.each do |node|
       node_ref = node.attribute("id").value
       extras = [node.attribute("lat").value, node.attribute("lon").value]
       extra_information = []
-      node.children.each do |child|
-        extra_information.push("traffic_light") if child.to_s == "<tag k=\"highway\" v=\"crossing\"/>"
+
+      case adapt_to
+      when 0
+      when 1
+        extra_information.push("marked") if node.children.to_s.include?(custom_tags.first)
+      when 2
+        extra_information.push("marked") if !node.children.to_s.include?(custom_tags.last)
       end
-      extras.push extra_information
+      extras.push(extra_information)
       node_information[node_ref] = extras
     end
     node_information
@@ -291,6 +310,27 @@ class Route < ApplicationRecord
       "<tag k=\"bicycle\" v=\"yes\"/>",
       "<tag k=\"cycleway\" v=\"track\"/>",
       "<tag k=\"cycleway\" v=\"opposite\"/>"
+    ]
+  end
+
+  def custom_motor
+    [
+      "<tag k=\"highway\" v=\"traffic_signals\"/>",
+      "<tag k=\"maxspeed\" v=\"30 mph\"/>"
+    ]
+  end
+
+  def custom_foot
+    [
+      "<tag k=\"highway\" v=\"crossing\"/>",
+      "<tag k=\"surface\" v=\"asphalt\"/>"
+    ]
+  end
+
+  def custom_cycle
+    [
+      "<tag k=\"highway\" v=\"traffic_signals\"/>",
+      "<tag k=\"lit\" v=\"yes\"/>"
     ]
   end
 end
