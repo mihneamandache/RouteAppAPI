@@ -3,7 +3,7 @@ class RoutesController < ApplicationController
     @route = Route.new(route_params)
 
     if @route.save
-      render json: @route.id
+      render json: {:route_id => @route.id}
     else
       render json: "Error"
     end
