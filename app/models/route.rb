@@ -67,9 +67,9 @@ class Route < ApplicationRecord
   def get_start_location_id(graph)
     api_url = "http://overpass-api.de/api/interpreter?data=node(around:"
     start_location_id = nil
-
-    start_lat = locations[0].latitude
-    start_lon = locations[0].longitude
+    start_loc = locations.select { |location| location.location_type == "start"}.first
+    start_lat = start_loc.latitude
+    start_lon = start_loc.longitude
     start = "," + start_lat.to_s + "," + start_lon.to_s + ");out;"
 
     radius = 10
@@ -99,8 +99,9 @@ class Route < ApplicationRecord
     api_url = "http://overpass-api.de/api/interpreter?data=node(around:"
     goal_location_id = nil
 
-    goal_lat = locations[1].latitude
-    goal_lon = locations[1].longitude
+    goal_loc = locations.select { |location| location.location_type == "goal"}.first
+    goal_lat = goal_loc.latitude
+    goal_lon = goal_loc.longitude
     goal = "," + goal_lat.to_s + "," + goal_lon.to_s + ");out;"
 
     radius = 10
