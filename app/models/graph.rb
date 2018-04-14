@@ -195,20 +195,5 @@ class Graph
     [dest.reference, get_path_recursively(previouses, src, previouses[dest])].flatten
   end
 
-  def alg_try(src, dst)
-    distances = {}
-    previouses = {}
-    is_good = {}
-
-    @vertices.each do |vertex|
-      distances[vertex] = nil # Infinity
-      previouses[vertex] = nil
-      is_good[vertex] = true
-    end
-
-    distances[src] = 0
-    recursive(src, dest, distances)
-  end
-
   #inspired from https://gist.github.com/yaraki/1730288
 end
