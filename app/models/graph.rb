@@ -149,25 +149,26 @@ class Graph
         b
       end
       break unless distances[nearest_vertex]
-
-      neighbors = vertices_copy.neighbors(nearest_vertex)
-      neighbors.each do |vertex|
-        obstacle = 0
-        if vertex.extras.include?("marked")
-          obstacle = 1
-        end
-        alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
-        if distances[vertex].nil?
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
-          no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
-        elsif no_of_obstacles[vertex] > no_of_obstacles[nearest_vertex] + obstacle
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
-          no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
-        elsif (no_of_obstacles[vertex] == no_of_obstacles[nearest_vertex] + obstacle and alt < distances[vertex])
-          distances[vertex] = alt
-          previouses[vertex] = nearest_vertex
+      if nearest_vertex != dst
+        neighbors = vertices_copy.neighbors(nearest_vertex)
+        neighbors.each do |vertex|
+          obstacle = 0
+          if vertex.extras.include?("marked")
+            obstacle = 1
+          end
+          alt = distances[nearest_vertex] + vertices_copy.length_between(nearest_vertex, vertex)
+          if distances[vertex].nil?
+            distances[vertex] = alt
+            previouses[vertex] = nearest_vertex
+            no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
+          elsif no_of_obstacles[vertex] > no_of_obstacles[nearest_vertex] + obstacle
+            distances[vertex] = alt
+            previouses[vertex] = nearest_vertex
+            no_of_obstacles[vertex] = no_of_obstacles[nearest_vertex] + obstacle
+          elsif (no_of_obstacles[vertex] == no_of_obstacles[nearest_vertex] + obstacle and alt < distances[vertex])
+            distances[vertex] = alt
+            previouses[vertex] = nearest_vertex
+          end
         end
       end
     vertices_copy.vertices.delete nearest_vertex
